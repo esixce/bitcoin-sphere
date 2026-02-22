@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment and secrets (do not commit)
+.env
+.env.*
+*.key
+*.pem
+
+# OS and editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Logs and local run
+*.log
+npm-debug.log*
+
+# Optional: uncomment if you prefer not to commit collected data
+# data/collected-pubkeys.json

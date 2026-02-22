@@ -1,0 +1,30 @@
+# Projective Sphere Pubkey Map
+
+A small website that shows secp256k1 public keys on the **projective sphere**: every point on Bitcoin’s curve is mapped to a point on a 3D sphere via inverse stereographic projection. Visitors can see a map of collected public keys and paste one or more of their own to see *where you are* on the sphere.
+
+## Goal
+
+- **Map view**: Plot many public keys (collected from the blockchain) as points on an interactive 3D sphere.
+- **Your keys**: Input one or more public keys (hex); the app shows their positions on the same sphere.
+
+The math (normalization of curve coordinates to [-π, π], then inverse stereographic projection onto the unit sphere) is the same as in the algebraic foundations notebook.
+
+## Math source
+
+The pipeline is defined and visualized here:
+
+- [elliptic-curves/01-algebraic-foundations.ipynb](../elliptic-curves/01-algebraic-foundations.ipynb) — secp256k1 parameters, scaling, `inv_stereo`, and the sphere plot (e.g. the cell that plots G, kG, and the point at infinity).
+
+## How to build it
+
+Implementation is described step by step in:
+
+- **[docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md)** — math pipeline, collector (reading block `.dat` files), web app design, and suggested order of work.
+
+Subfolders:
+
+- **collector/** — script(s) that read Bitcoin Core’s `blk*.dat` files and produce a static list of pubkeys. See [collector/README.md](collector/README.md).
+- **web/** — static site (sphere + static list + user key input). See [web/README.md](web/README.md).
+- **data/** — holds `collected-pubkeys.json` produced by the collector (or document copying it into `web/public/` for the app).
+
+Follow the implementation guide and the per-folder READMEs to build the project step by step.

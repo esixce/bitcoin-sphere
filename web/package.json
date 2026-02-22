@@ -1,0 +1,7 @@
+{
+  "name": "projective-sphere-web",
+  "private": true,
+  "scripts": {
+    "start": "npx serve ."
+  }
+}
