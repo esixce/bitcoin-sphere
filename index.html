@@ -7,10 +7,27 @@
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 </head>
 <body>
+  <div style="margin:0.5em 1em; font-family:sans-serif;">
+    <label for="pubkeys">Public keys (hex, one per line — 66 or 130 chars):</label><br>
+    <textarea id="pubkeys" rows="4" style="width:100%; max-width:720px; font-family:monospace; font-size:12px;" placeholder="02... or 04..."></textarea><br>
+    <button type="button" id="showBtn">Show on sphere</button>
+    <span id="msg" style="margin-left:0.5em; color:#c00;"></span>
+  </div>
   <div id="plot" style="width:100%; height:700px;"></div>
   <p style="margin:0.5em 1em; font-family:sans-serif;">
-    secp256k1 on the projective sphere — G and 100 points (kG for k = 1…100). Drag to rotate.
+    secp256k1 on the projective sphere — G and 100 points (kG for k = 1…100). Paste your keys above to see where you are. Drag to rotate.
   </p>
+  <div style="margin:1em 1em 2em; font-family:sans-serif; font-size:14px;">
+    <strong>Sample pubkeys to try</strong> (copy into the box above, then click Show on sphere):
+    <ul style="margin:0.25em 0; padding-left:1.25em;">
+      <li><strong>Generator G</strong> (compressed) — the secp256k1 generator point used by every Bitcoin node:<br>
+        <code style="font-size:11px; word-break:break-all;">0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798</code></li>
+      <li><strong>Genesis block coinbase</strong> (uncompressed) — the 50 BTC output in block 0 (address 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa):<br>
+        <code style="font-size:11px; word-break:break-all;">04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f</code></li>
+      <li><strong>2G</strong> (compressed) — second point on the curve (2 × generator):<br>
+        <code style="font-size:11px; word-break:break-all;">02C6047F9441ED7D6D3045406E95C07CD85C778E4B8CEF3CA7ABAC09B95C709EE5</code></li>
+    </ul>
+  </div>
   <script src="sphere-math.js"></script>
   <script>
     (function () {
@@ -98,7 +115,58 @@
         legend: { x: 0.01, y: 0.98 },
       };
 
-      Plotly.newPlot('plot', [surfaceTrace, sampleTrace, gTrace, oTrace], layout);
+      const baseTraces = [surfaceTrace, sampleTrace, gTrace, oTrace];
+
+      function buildUserTrace() {
+        const raw = document.getElementById('pubkeys').value;
+        const lines = raw.split(/\r?\n/).map(function (s) { return s.replace(/\s/g, ''); }).filter(Boolean);
+        const msgEl = document.getElementById('msg');
+        const ux = [], uy = [], uz = [], labels = [];
+        const errors = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          const hex = lines[i];
+          try {
+            const pt = M.parsePubkey(hex);
+            const s = M.pointToSphere(pt.x, pt.y);
+            ux.push(s.x); uy.push(s.y); uz.push(s.z);
+            labels.push('Your key ' + (i + 1));
+          } catch (e) {
+            errors.push('Key ' + (i + 1) + ': ' + (e.message || String(e)));
+          }
+        }
+
+        if (errors.length) {
+          msgEl.textContent = errors.length + ' invalid: ' + errors.slice(0, 2).join('; ') + (errors.length > 2 ? '…' : '');
+          msgEl.style.color = '#c00';
+        } else if (ux.length === 0) {
+          msgEl.textContent = 'Enter one or more public keys (66 or 130 hex chars).';
+          msgEl.style.color = '#666';
+        } else {
+          msgEl.textContent = ux.length + ' key(s) on sphere.';
+          msgEl.style.color = '#060';
+        }
+
+        if (ux.length === 0) return null;
+        return {
+          x: ux, y: uy, z: uz,
+          mode: 'markers+text',
+          type: 'scatter3d',
+          marker: { size: 8, color: 'rgb(0,150,255)', symbol: 'circle-open', line: { color: 'rgb(0,100,200)', width: 2 } },
+          text: labels.map(function (l) { return '  ' + l; }),
+          textposition: 'top right',
+          name: 'Your keys',
+        };
+      }
+
+      function redraw() {
+        const userTrace = buildUserTrace();
+        const traces = userTrace ? baseTraces.concat([userTrace]) : baseTraces;
+        Plotly.react('plot', traces, layout);
+      }
+
+      Plotly.newPlot('plot', baseTraces, layout);
+      document.getElementById('showBtn').addEventListener('click', redraw);
     })();
   </script>
 </body>
