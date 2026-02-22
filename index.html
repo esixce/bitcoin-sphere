@@ -13,10 +13,13 @@
     <button type="button" id="showBtn">Show on sphere</button>
     <span id="msg" style="margin-left:0.5em; color:#c00;"></span>
     <label style="display:block; margin-top:0.5em;"><input type="checkbox" id="earthLayer" checked> Earth layer (North = mathematical pole, Greenwich = symmetry line)</label>
+    <span id="earthStatus" style="margin-left:0.5em; color:#666; font-size:12px;"></span>
+    <label style="display:block; margin-top:0.5em;">Max k: <input type="number" id="maxK" min="1" max="500" value="100" style="width:4em;"> (kG for k = 1…max)</label>
+    <label style="display:block; margin-top:0.25em;"><input type="checkbox" id="reflectY"> Also show y-axis reflection of kG points</label>
   </div>
   <div id="plot" style="width:100%; height:700px;"></div>
   <p style="margin:0.5em 1em; font-family:sans-serif;">
-    secp256k1 on the projective sphere — G and 100 points (kG for k = 1…100). Paste your keys above to see where you are. Drag to rotate.
+    secp256k1 on the projective sphere — G and kG points (k = 1…max k; optional y-axis reflection). Paste your keys above to see where you are. Drag to rotate.
   </p>
   <div style="margin:1em 1em 2em; font-family:sans-serif; font-size:14px;">
     <strong>Sample pubkeys to try</strong> (copy into the box above, then click Show on sphere):
@@ -60,31 +63,112 @@
         var lat = Math.asin(Math.max(-1, Math.min(1, z)));
         return { lon: lon, lat: lat };
       }
-      function earthSurfaceColor(lon, lat) {
+      function earthSurfaceColorProcedural(lon, lat) {
         var t = 0.5 + 0.25 * Math.sin(lat * 2) * Math.sin(lon * 3) + 0.2 * Math.sin(lat * 7) * Math.cos(lon * 5) + 0.15 * Math.cos(lat * 4) * Math.sin(lon * 6);
         t = (t - 0.2) / 0.8;
-        t = Math.max(0, Math.min(1, t));
-        return t;
+        return Math.max(0, Math.min(1, t));
       }
-      const earthColors = [];
+      const earthColorsProcedural = [];
       for (var ei = 0; ei <= nFill; ei++) {
         const row = [];
         for (var ej = 0; ej <= nFill; ej++) {
           var x = xs[ei][ej], y = ys[ei][ej], z = zs[ei][ej];
           var ll = lonLatFromXYZ(x, y, z);
-          row.push(earthSurfaceColor(ll.lon, ll.lat));
+          row.push(earthSurfaceColorProcedural(ll.lon, ll.lat));
         }
-        earthColors.push(row);
+        earthColorsProcedural.push(row);
       }
-      const earthTrace = {
+      var earthTrace = {
         x: xs, y: ys, z: zs,
-        surfacecolor: earthColors,
+        surfacecolor: earthColorsProcedural,
         colorscale: [[0, 'rgb(20,70,140)'], [0.35, 'rgb(90,160,220)'], [0.5, 'rgb(70,130,70)'], [0.7, 'rgb(140,120,80)'], [1, 'rgb(80,90,50)']],
         showscale: false,
         opacity: 0.92,
         type: 'surface',
         name: 'Earth (toggle)',
       };
+
+      function setEarthStatus(text) {
+        var el = document.getElementById('earthStatus');
+        if (el) el.textContent = text;
+      }
+
+      function buildEarthTraceFromImage(img) {
+        var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+        if (!w || !h) return;
+        var canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        var data;
+        try {
+          ctx.drawImage(img, 0, 0);
+          data = ctx.getImageData(0, 0, w, h).data;
+        } catch (e) {
+          if (e.name === 'SecurityError' || (e.message && e.message.indexOf('tainted') !== -1)) {
+            setEarthStatus('Earth texture: procedural (open via a server, e.g. npx serve .)');
+          } else {
+            setEarthStatus('Earth texture: error');
+            console.error('Earth texture:', e);
+          }
+          return;
+        }
+        var sampled = [];
+        var earthColorsNew = [];
+        for (var ei = 0; ei <= nFill; ei++) {
+          var row = [];
+          for (var ej = 0; ej <= nFill; ej++) {
+            var x = xs[ei][ej], y = ys[ei][ej], z = zs[ei][ej];
+            var ll = lonLatFromXYZ(x, y, z);
+            var u = (ll.lon + Math.PI) / (2 * Math.PI);
+            var v = 0.5 - ll.lat / Math.PI;
+            var px = Math.floor(u * w) % w;
+            if (px < 0) px += w;
+            var py = Math.max(0, Math.min(h - 1, Math.floor(v * h)));
+            var i = (py * w + px) * 4;
+            var r = data[i], g = data[i + 1], b = data[i + 2];
+            sampled.push([r, g, b]);
+            row.push(0);
+          }
+          earthColorsNew.push(row);
+        }
+        var N = (nFill + 1) * (nFill + 1);
+        var scaleVal = N <= 1 ? 1 : N - 1;
+        for (var ei = 0; ei <= nFill; ei++) {
+          for (var ej = 0; ej <= nFill; ej++) {
+            earthColorsNew[ei][ej] = (ei * (nFill + 1) + ej) / scaleVal;
+          }
+        }
+        var colorscale = [];
+        for (var idx = 0; idx < sampled.length; idx++) {
+          var rgb = sampled[idx];
+          colorscale.push([idx / scaleVal, 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')']);
+        }
+        if (colorscale.length === 0) colorscale = [[0, 'rgb(20,70,140)']];
+        earthTrace = {
+          x: xs, y: ys, z: zs,
+          surfacecolor: earthColorsNew,
+          colorscale: colorscale,
+          showscale: false,
+          opacity: 0.92,
+          type: 'surface',
+          name: 'Earth (toggle)',
+        };
+        setEarthStatus('Earth texture: map');
+        redraw();
+      }
+
+      var earthImg = new Image();
+      earthImg.crossOrigin = 'anonymous';
+      earthImg.onload = function() {
+        setEarthStatus('Earth texture: applying…');
+        buildEarthTraceFromImage(earthImg);
+      };
+      earthImg.onerror = function() {
+        setEarthStatus('Earth texture: procedural (image failed to load)');
+      };
+      setEarthStatus('Earth texture: loading…');
+      earthImg.src = 'Equirectangular-projection.jpg';
 
       const surfaceTrace = {
         x: xs, y: ys, z: zs,
@@ -95,23 +179,33 @@
         type: 'surface',
       };
 
-      const sampleX = [], sampleY = [], sampleZ = [];
       const G = M.G;
-      for (let k = 1; k <= 100; k++) {
-        const pt = M.scalarMult(BigInt(k), G);
-        if (pt) {
-          const s = M.pointToSphere(pt.x, pt.y);
-          sampleX.push(s.x); sampleY.push(s.y); sampleZ.push(s.z);
+      const maxKCap = 500;
+      function buildSampleTrace() {
+        var maxK = parseInt(document.getElementById('maxK').value, 10);
+        if (isNaN(maxK) || maxK < 1) maxK = 1;
+        if (maxK > maxKCap) maxK = maxKCap;
+        var reflectY = document.getElementById('reflectY').checked;
+        var sampleX = [], sampleY = [], sampleZ = [];
+        for (var k = 1; k <= maxK; k++) {
+          var pt = M.scalarMult(BigInt(k), G);
+          if (pt) {
+            var s = M.pointToSphere(pt.x, pt.y);
+            sampleX.push(s.x); sampleY.push(s.y); sampleZ.push(s.z);
+            if (reflectY) {
+              sampleX.push(-s.x); sampleY.push(s.y); sampleZ.push(s.z);
+            }
+          }
         }
+        var name = 'kG (k = 1…' + maxK + (reflectY ? ', incl. reflection' : '') + ')';
+        return {
+          x: sampleX, y: sampleY, z: sampleZ,
+          mode: 'markers',
+          type: 'scatter3d',
+          marker: { size: 2.5, color: 'rgb(255,34,0)', opacity: 0.85 },
+          name: name,
+        };
       }
-
-      const sampleTrace = {
-        x: sampleX, y: sampleY, z: sampleZ,
-        mode: 'markers',
-        type: 'scatter3d',
-        marker: { size: 2.5, color: 'rgb(255,34,0)', opacity: 0.85 },
-        name: 'kG (k = 1…100)',
-      };
 
       const gSphere = M.pointToSphere(G.x, G.y);
       const gTrace = {
@@ -150,7 +244,7 @@
 
       var earthLayerVisible = true;
       function baseTracesWithEarth() {
-        var list = [surfaceTrace, sampleTrace, gTrace, oTrace];
+        var list = [surfaceTrace, buildSampleTrace(), gTrace, oTrace];
         if (earthLayerVisible) list.unshift(earthTrace);
         return list;
       }
@@ -208,6 +302,9 @@
         earthLayerVisible = this.checked;
         redraw();
       });
+      document.getElementById('maxK').addEventListener('change', redraw);
+      document.getElementById('maxK').addEventListener('input', redraw);
+      document.getElementById('reflectY').addEventListener('change', redraw);
 
       Plotly.newPlot('plot', baseTracesWithEarth(), layout);
       document.getElementById('showBtn').addEventListener('click', redraw);

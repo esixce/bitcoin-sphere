@@ -32,3 +32,7 @@ Subfolders:
 - **data/** — holds `collected-pubkeys.json` produced by the collector (or document copying it into `web/public/` for the app).
 
 Follow the implementation guide and the per-folder READMEs to build the project step by step.
+
+## Earth layer (optional)
+
+The Earth layer uses **Equirectangular-projection.jpg** at the repo root (flat equirectangular world map, public domain from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Equirectangular-projection.jpg)). The app loads it and maps it onto the sphere (North = mathematical pole, Greenwich = positive X). If the image fails to load, a procedural fallback is shown. **Note:** The real map texture is only applied when the app is served over HTTP(S) (e.g. `npx serve .` or GitHub Pages). Opening `index.html` directly as a file may show the procedural fallback due to browser security (canvas tainting).
