@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>secp256k1 on the projective sphere</title>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+  <div id="plot" style="width:100%; height:700px;"></div>
+  <p style="margin:0.5em 1em; font-family:sans-serif;">
+    secp256k1 on the projective sphere — G and 100 points (kG for k = 1…100). Drag to rotate.
+  </p>
+  <script src="sphere-math.js"></script>
+  <script>
+    (function () {
+      const M = window.sphereMath;
+      const span = 2 * Math.PI;
+      const nFill = 50;
+      const fillV = [];
+      for (let i = 0; i <= nFill; i++) fillV.push(-span + (2 * span * i) / nFill);
+
+      function invStereo(u, v) {
+        const d = u * u + v * v + 1;
+        return { x: 2 * u / d, y: 2 * v / d, z: (u * u + v * v - 1) / d };
+      }
+
+      const xs = [], ys = [], zs = [];
+      for (let i = 0; i <= nFill; i++) {
+        const rowX = [], rowY = [], rowZ = [];
+        for (let j = 0; j <= nFill; j++) {
+          const u = fillV[j], v = fillV[i];
+          const p = invStereo(u, v);
+          rowX.push(p.x); rowY.push(p.y); rowZ.push(p.z);
+        }
+        xs.push(rowX); ys.push(rowY); zs.push(rowZ);
+      }
+
+      const surfaceTrace = {
+        x: xs, y: ys, z: zs,
+        surfacecolor: zs,
+        colorscale: 'Viridis',
+        showscale: false,
+        opacity: 0.4,
+        type: 'surface',
+      };
+
+      const sampleX = [], sampleY = [], sampleZ = [];
+      const G = M.G;
+      for (let k = 1; k <= 100; k++) {
+        const pt = M.scalarMult(BigInt(k), G);
+        if (pt) {
+          const s = M.pointToSphere(pt.x, pt.y);
+          sampleX.push(s.x); sampleY.push(s.y); sampleZ.push(s.z);
+        }
+      }
+
+      const sampleTrace = {
+        x: sampleX, y: sampleY, z: sampleZ,
+        mode: 'markers',
+        type: 'scatter3d',
+        marker: { size: 2.5, color: 'rgb(255,34,0)', opacity: 0.85 },
+        name: 'kG (k = 1…100)',
+      };
+
+      const gSphere = M.pointToSphere(G.x, G.y);
+      const gTrace = {
+        x: [gSphere.x], y: [gSphere.y], z: [gSphere.z],
+        mode: 'markers+text',
+        type: 'scatter3d',
+        marker: { size: 10, color: 'gold', symbol: 'diamond', line: { color: 'black', width: 2 } },
+        text: ['  G (generator)'],
+        textposition: 'top right',
+        name: 'G — Bitcoin generator',
+      };
+
+      const oTrace = {
+        x: [0], y: [0], z: [1.05],
+        mode: 'markers+text',
+        type: 'scatter3d',
+        marker: { size: 8, color: 'white', line: { color: 'red', width: 3 } },
+        text: ['  O (point at infinity)'],
+        textposition: 'top right',
+        name: 'O',
+      };
+
+      const layout = {
+        title: 'secp256k1: y² = x³ + 7 — projective sphere',
+        scene: {
+          xaxis: { title: 'X' },
+          yaxis: { title: 'Y' },
+          zaxis: { title: 'Z' },
+          aspectmode: 'data',
+          camera: { eye: { x: 1.8, y: 0, z: 0.6 } },
+        },
+        height: 700,
+        margin: { l: 0, r: 0, t: 40, b: 0 },
+        legend: { x: 0.01, y: 0.98 },
+      };
+
+      Plotly.newPlot('plot', [surfaceTrace, sampleTrace, gTrace, oTrace], layout);
+    })();
+  </script>
+</body>
+</html>

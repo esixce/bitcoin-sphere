@@ -2,6 +2,10 @@
 
 A small website that shows secp256k1 public keys on the **projective sphere**: every point on Bitcoin’s curve is mapped to a point on a 3D sphere via inverse stereographic projection. Visitors can see a map of collected public keys and paste one or more of their own to see *where you are* on the sphere.
 
+## Live site
+
+**[https://esixce.github.io/projective-sphere/](https://esixce.github.io/projective-sphere/)** — view the sphere in the browser (GitHub Pages). To enable: repo **Settings → Pages → Source**: Deploy from a **branch**; branch **main**, folder **/ (root)**; Save.
+
 ## Goal
 
 - **Map view**: Plot many public keys (collected from the blockchain) as points on an interactive 3D sphere.
