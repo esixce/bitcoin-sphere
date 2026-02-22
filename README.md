@@ -4,7 +4,7 @@ A small website that shows secp256k1 public keys on the **projective sphere**: e
 
 ## Live site
 
-**[https://esixce.github.io/projective-sphere/](https://esixce.github.io/projective-sphere/)** — view the sphere in the browser (GitHub Pages). To enable: repo **Settings → Pages → Source**: Deploy from a **branch**; branch **main**, folder **/ (root)**; Save.
+**[https://esixce.github.io/bitcoin-sphere/](https://esixce.github.io/bitcoin-sphere/)** — view the sphere in the browser (GitHub Pages). To enable: repo **Settings → Pages → Source**: Deploy from a **branch**; branch **main**, folder **/ (root)**; Save.
 
 ## Goal
 

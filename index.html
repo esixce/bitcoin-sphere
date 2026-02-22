@@ -12,6 +12,7 @@
     <textarea id="pubkeys" rows="4" style="width:100%; max-width:720px; font-family:monospace; font-size:12px;" placeholder="02... or 04..."></textarea><br>
     <button type="button" id="showBtn">Show on sphere</button>
     <span id="msg" style="margin-left:0.5em; color:#c00;"></span>
+    <label style="display:block; margin-top:0.5em;"><input type="checkbox" id="earthLayer" checked> Earth layer (North = mathematical pole, Greenwich = symmetry line)</label>
   </div>
   <div id="plot" style="width:100%; height:700px;"></div>
   <p style="margin:0.5em 1em; font-family:sans-serif;">
@@ -52,6 +53,38 @@
         }
         xs.push(rowX); ys.push(rowY); zs.push(rowZ);
       }
+
+      // Earth layer: same unit sphere, north pole = (0,0,1), Greenwich = positive X (lon 0)
+      function lonLatFromXYZ(x, y, z) {
+        var lon = Math.atan2(y, x);
+        var lat = Math.asin(Math.max(-1, Math.min(1, z)));
+        return { lon: lon, lat: lat };
+      }
+      function earthSurfaceColor(lon, lat) {
+        var t = 0.5 + 0.25 * Math.sin(lat * 2) * Math.sin(lon * 3) + 0.2 * Math.sin(lat * 7) * Math.cos(lon * 5) + 0.15 * Math.cos(lat * 4) * Math.sin(lon * 6);
+        t = (t - 0.2) / 0.8;
+        t = Math.max(0, Math.min(1, t));
+        return t;
+      }
+      const earthColors = [];
+      for (var ei = 0; ei <= nFill; ei++) {
+        const row = [];
+        for (var ej = 0; ej <= nFill; ej++) {
+          var x = xs[ei][ej], y = ys[ei][ej], z = zs[ei][ej];
+          var ll = lonLatFromXYZ(x, y, z);
+          row.push(earthSurfaceColor(ll.lon, ll.lat));
+        }
+        earthColors.push(row);
+      }
+      const earthTrace = {
+        x: xs, y: ys, z: zs,
+        surfacecolor: earthColors,
+        colorscale: [[0, 'rgb(20,70,140)'], [0.35, 'rgb(90,160,220)'], [0.5, 'rgb(70,130,70)'], [0.7, 'rgb(140,120,80)'], [1, 'rgb(80,90,50)']],
+        showscale: false,
+        opacity: 0.92,
+        type: 'surface',
+        name: 'Earth (toggle)',
+      };
 
       const surfaceTrace = {
         x: xs, y: ys, z: zs,
@@ -115,7 +148,12 @@
         legend: { x: 0.01, y: 0.98 },
       };
 
-      const baseTraces = [surfaceTrace, sampleTrace, gTrace, oTrace];
+      var earthLayerVisible = true;
+      function baseTracesWithEarth() {
+        var list = [surfaceTrace, sampleTrace, gTrace, oTrace];
+        if (earthLayerVisible) list.unshift(earthTrace);
+        return list;
+      }
 
       function buildUserTrace() {
         const raw = document.getElementById('pubkeys').value;
@@ -161,11 +199,17 @@
 
       function redraw() {
         const userTrace = buildUserTrace();
-        const traces = userTrace ? baseTraces.concat([userTrace]) : baseTraces;
+        const base = baseTracesWithEarth();
+        const traces = userTrace ? base.concat([userTrace]) : base;
         Plotly.react('plot', traces, layout);
       }
 
-      Plotly.newPlot('plot', baseTraces, layout);
+      document.getElementById('earthLayer').addEventListener('change', function() {
+        earthLayerVisible = this.checked;
+        redraw();
+      });
+
+      Plotly.newPlot('plot', baseTracesWithEarth(), layout);
       document.getElementById('showBtn').addEventListener('click', redraw);
     })();
   </script>
